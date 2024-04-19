@@ -6,6 +6,7 @@ import gleam/int
 import gleam/dict.{type Dict}
 import gacha.{do_gacha}
 import gleam/list
+import gleam/option.{None, Some}
 
 pub fn main() {
   io.println(
@@ -27,35 +28,45 @@ fn show_menu(person: Person, inv: Dict(String, Int)) -> Nil {
     <> "(4) Check Inventory\n"
     <> "(5) Exit\n",
   )
-  let choice = get_int_input("Pick a number: ")
-  let #(person, inv, end) = case choice {
-    1 -> {
-      io.println("Grinding!")
-      let p =
-        change_coins(person, 10)
-        |> change_sanity(-10)
+  let #(choice, is_haxxor) = get_int_input("Pick a number: ")
 
-      #(p, inv, False)
-    }
-    2 -> {
-      io.println("Resting!")
-      #(change_sanity(person, 5), inv, False)
-    }
-    3 -> {
-      io.println("Gacha-ing!")
-      let #(person, inv) = do_gacha(person, inv)
+  let #(person, inv, end) = case is_haxxor {
+    True -> {
+      io.println("Welcome back, haxxor man!")
+      let #(person, inv) = do_gacha(person, inv, Some(False))
       #(person, inv, False)
     }
-    4 -> {
-      let inv = get_inv(inv)
-      #(person, inv, False)
-    }
-    5 -> {
-      #(person, inv, True)
-    }
-    _ -> {
-      io.println("That's not one of the choices!")
-      #(person, inv, False)
+    False -> {
+      case choice {
+        1 -> {
+          io.println("Grinding!")
+          let p =
+            change_coins(person, 10)
+            |> change_sanity(-10)
+
+          #(p, inv, False)
+        }
+        2 -> {
+          io.println("Resting!")
+          #(change_sanity(person, 5), inv, False)
+        }
+        3 -> {
+          io.println("Gacha-ing!")
+          let #(person, inv) = do_gacha(person, inv, None)
+          #(person, inv, False)
+        }
+        4 -> {
+          let inv = get_inv(inv)
+          #(person, inv, False)
+        }
+        5 -> {
+          #(person, inv, True)
+        }
+        _ -> {
+          io.println("That's not one of the choices!")
+          #(person, inv, False)
+        }
+      }
     }
   }
 
@@ -103,7 +114,7 @@ fn get_inv(inv: Dict(String, Int)) -> Dict(String, Int) {
   inv
 }
 
-fn get_int_input(msg: String) -> Int {
+fn get_int_input(msg: String) -> #(Int, Bool) {
   case erlang.get_line(msg) {
     Ok(n) -> is_int(n, fn() { get_int_input(msg) })
     Error(_) -> {
@@ -113,16 +124,24 @@ fn get_int_input(msg: String) -> Int {
   }
 }
 
-fn is_int(str: String, restart_func: fn() -> Int) -> Int {
-  let res =
+fn is_int(str: String, restart_func: fn() -> #(Int, Bool)) -> #(Int, Bool) {
+  case
     str
     |> string.trim()
-    |> int.parse()
-  case res {
-    Ok(n) -> n
-    Error(_) -> {
-      io.println("That's not a number!")
-      restart_func()
+  {
+    "hax" -> #(0, True)
+    _ -> {
+      let res =
+        str
+        |> string.trim()
+        |> int.parse()
+      case res {
+        Ok(n) -> #(n, False)
+        Error(_) -> {
+          io.println("That's not a number!")
+          restart_func()
+        }
+      }
     }
   }
 }

@@ -2,37 +2,62 @@ import player.{type Person, can_afford, change_coins}
 import gleam/int
 import gleam/dict.{type Dict, get}
 import gleam/io
+import gleam/option.{type Option, Some}
 
+pub type WonGacha =
+  Bool
+
+/// if given haxx_status, keep pulling until gacha won
 pub fn do_gacha(
   person: Person,
   inv: Dict(String, Int),
+  haxx_status: Option(WonGacha),
 ) -> #(Person, Dict(String, Int)) {
-  let price = 20
-  let #(person, inv) = case
+  let price = case haxx_status {
+    Some(_) -> {
+      0
+    }
+    _ -> {
+      20
+    }
+  }
+  let #(person, inv, won) = case
     person
     |> can_afford(price)
   {
     True -> {
       // CAN AFFORD
-      let inv = case pull_success() {
+      let #(inv, won) = case pull_success() {
         True -> {
-          inv
-          |> add_item("Massive Honkers Woman")
+          let new_inv =
+            inv
+            |> add_item("Massive Honkers Woman")
+          #(new_inv, True)
         }
-        False ->
-          inv
-          |> add_item("Pile of Shit")
+        False -> {
+          let new_inv =
+            inv
+            |> add_item("Pile of Shit")
+          #(new_inv, False)
+        }
       }
       let person = change_coins(person, price * -1)
-      #(person, inv)
+      #(person, inv, won)
     }
     False -> {
       // CAN'T AFFORD
       io.println("You can't afford this bruh")
+      #(person, inv, False)
+    }
+  }
+  case #(haxx_status, won) {
+    #(Some(_), False) -> {
+      do_gacha(person, inv, Some(False))
+    }
+    _ -> {
       #(person, inv)
     }
   }
-  #(person, inv)
 }
 
 fn add_item(inv: Dict(String, Int), item_name: String) -> Dict(String, Int) {
